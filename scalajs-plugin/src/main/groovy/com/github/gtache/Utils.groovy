@@ -33,7 +33,7 @@ public final class Utils {
 
     public static final String SCALA_VERSION = "2.11"
     public static final String SUB_VERSION = "8"
-    public static final String SCALAJS_VERSION = "0.6.9"
+    public static final String SCALAJS_VERSION = "0.6.13"
 
     public static final String JETTY_SERVER_VERSION = "8.1.16.v20140903"
     public static final String JETTY_WEBSOCKET_VERSION = "8.1.16.v20140903"
