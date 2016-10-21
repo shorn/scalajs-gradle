@@ -1,112 +1,105 @@
-group 'com.github.gtache'
-version '0.2.0'
+buildscript{
+  repositories{
+    jcenter()
+  }
+  dependencies{
+    classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.3.1'
+  }
+}
+
+group 'com.github.shorn'
+version '0.2.1'
 
 String scalaVersion = '2.11'
 String subVersion = '8'
-String scalaJSVersion = '0.6.9'
-
-ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+String scalaJSVersion = '0.6.13'
 
 apply plugin: 'scala'
 apply plugin: 'groovy'
 apply plugin: 'maven'
-apply plugin: 'signing'
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.bintray'
 
 sourceCompatibility = 1.8
 
-repositories {
-    mavenCentral()
+repositories{
+  mavenCentral()
 }
 
-dependencies {
-    compile gradleApi()
-    compile 'org.codehaus.groovy:groovy-all:2.4.4'
-    compile 'org.scala-lang:scala-compiler:' + scalaVersion + '.' + subVersion
-    compile 'org.scala-lang:scala-library:' + scalaVersion + '.' + subVersion
-    compile group: 'org.scala-js', name: 'scalajs-sbt-test-adapter_' + scalaVersion, version: scalaJSVersion
-    compile group: 'org.scala-js', name: 'scalajs-js-envs_' + scalaVersion, version: scalaJSVersion
-    compile group: 'org.scala-js', name: 'scalajs-tools_' + scalaVersion, version: scalaJSVersion
-    testCompile group: 'junit', name: 'junit', version: '4.12'
-    testCompile group: 'com.google.guava', name: 'guava', version: '19.0'
+dependencies{
+  compile gradleApi()
+  compile 'org.codehaus.groovy:groovy-all:2.4.4'
+  compile 'org.scala-lang:scala-compiler:' + scalaVersion + '.' + subVersion
+  compile 'org.scala-lang:scala-library:' + scalaVersion + '.' + subVersion
+  compile group: 'org.scala-js', name: 'scalajs-sbt-test-adapter_' + scalaVersion, version: scalaJSVersion
+  compile group: 'org.scala-js', name: 'scalajs-js-envs_' + scalaVersion, version: scalaJSVersion
+  compile group: 'org.scala-js', name: 'scalajs-tools_' + scalaVersion, version: scalaJSVersion
+  testCompile group: 'junit', name: 'junit', version: '4.12'
+  testCompile group: 'com.google.guava', name: 'guava', version: '19.0'
 }
 
-signing {
-    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
-    sign configurations.archives
+task javadocJar(type: Jar){
+  classifier = 'javadoc'
+  from javadoc
 }
 
-signArchives.onlyIf { project.hasProperty('sign') }
-
-task javadocJar(type: Jar) {
-    classifier = 'javadoc'
-    from javadoc
+task groovydocJar(type: Jar){
+  classifier = 'groovydoc'
+  from groovydoc
 }
 
-task groovydocJar(type: Jar) {
-    classifier = 'groovydoc'
-    from groovydoc
+task scaladocJar(type: Jar){
+  classifier = 'scaladoc'
+  from scaladoc
 }
 
-task scaladocJar(type: Jar) {
-    classifier = 'scaladoc'
-    from scaladoc
+task sourcesJar(type: Jar){
+  classifier = 'sources'
+  from sourceSets.main.allSource
 }
 
-task sourcesJar(type: Jar) {
-    classifier = 'sources'
-    from sourceSets.main.allSource
+artifacts{
+  archives javadocJar, groovydocJar, scaladocJar, sourcesJar
 }
 
-artifacts {
-    archives javadocJar, groovydocJar, scaladocJar, sourcesJar
-}
-
-if (project.hasProperty('upload')) {
-    uploadArchives {
-        repositories {
-            mavenDeployer {
-                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
-
-                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
-
-                pom.project {
-                    name 'Scala.JS plugin'
-                    packaging 'jar'
-                    description 'A plugin used to build Scala.js on Gradle.'
-                    url 'https://github.com/gtache/scalajs-gradle'
-                    licenses {
-                        license {
-                            name 'Scala License'
-                            url 'http://www.scala-lang.org/license.html'
-                        }
-                    }
-                    scm {
-                        connection 'scm:git:ssh://git@github.com:gtache/scalajs-gradle.git'
-                        developerConnection 'scm:git:ss://git@github.com:gtache/scalajs-gradle.git'
-                        url 'https://github.com/gtache/scalajs-gradle'
-                    }
-
-                    developers {
-                        developer {
-                            id 'gtache'
-                            name 'Guillaume Tâche'
-                            email 'guillaume.tache@hotmail.com'
-                        }
-                    }
-                }
-            }
-        }
+publishing {
+  publications {
+    'scalajs-plugin'(MavenPublication) {
+      from components.java
+      groupId project.group
+      artifactId project.name // from settings.gradle
+      version project.version
     }
+  }
 }
 
-tasks.getByName('compileGroovy').dependsOn('compileScala')
+bintray {
+  user = System.getProperty("scalajsPluginBintrayPublishUser")
+  key = System.getProperty("scalajsPluginBintrayPublishKey")
+  dryRun = Boolean.getBoolean("scalajsPluginBintrayDryRun")
+  publish = true
+  pkg {
+    repo = 'scalajs-plugin'
+    name = project.name // based off project directory name
+    desc = 'ScalaJs Gradle plugin'
+    // BSD because that's what the maven central repo says,
+    // couldn't find anything in the source repo
+    licenses = ['BSD']
+    vcsUrl = 'https://github.com/shorn/scalajs-gradle.git'
 
-task wrapper(type: Wrapper) {
-    gradleVersion = '2.13'
+    publications = ['scalajs-plugin']
+
+    //noinspection GroovyAssignabilityCheck
+    version {
+      name = project.version
+      desc = "scalajs plugin $project.version"
+      publicDownloadNumbers = true
+      released  = new Date()
+    }
+  }
 }
+
+tasks.bintrayUpload.doFirst({
+  println "uploading plugin version ${project.version} to bintray"
+})
+
